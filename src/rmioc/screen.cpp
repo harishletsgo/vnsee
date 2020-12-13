@@ -127,8 +127,8 @@ void screen::update(mxcfb::waveform_modes mode, bool wait)
     mxcfb::update_data update{};
     update.update_region.left = 0;
     update.update_region.top = 0;
-    update.update_region.width = this->get_xres();
-    update.update_region.height = this->get_yres();
+    update.update_region.width = 1404;
+    update.update_region.height = 1872;
     update.waveform_mode = mode;
     update.temp = mxcfb::temps::normal;
     update.update_mode = mxcfb::update_modes::full;
@@ -192,67 +192,67 @@ auto screen::get_xres() const -> std::uint32_t
 
 auto screen::get_xres_memory() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.xres_virtual;
+    return 1404;
 }
 
 auto screen::get_yres() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.yres;
+    return 1872;
 }
 
 auto screen::get_yres_memory() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.yres_virtual;
+    return 1872;
 }
 
 auto screen::get_bits_per_pixel() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.bits_per_pixel;
+    return 16;
 }
 
 auto screen::get_red_offset() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.red.offset;
+    return 11;
 }
 
 auto screen::get_red_length() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.red.length;
+    return 5;
 }
 
 auto screen::get_red_max() const -> std::uint32_t
 {
-    return (1U << this->framebuf_varinfo.red.length) - 1;
+    return (1U << this->get_red_length()) - 1;
 }
 
 auto screen::get_green_offset() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.green.offset;
+    return 5;
 }
 
 auto screen::get_green_length() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.green.length;
+    return 6;
 }
 
 auto screen::get_green_max() const -> std::uint32_t
 {
-    return (1U << this->framebuf_varinfo.green.length) - 1;
+    return (1U << this->get_green_length()) - 1;
 }
 
 auto screen::get_blue_offset() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.blue.offset;
+    return 0;
 }
 
 auto screen::get_blue_length() const -> std::uint32_t
 {
-    return this->framebuf_varinfo.blue.length;
+    return 5;
 }
 
 auto screen::get_blue_max() const -> std::uint32_t
 {
-    return (1U << this->framebuf_varinfo.blue.length) - 1;
+    return (1U << this->get_blue_length()) - 1;
 }
 
 } // namespace rmioc

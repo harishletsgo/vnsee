@@ -7,7 +7,7 @@ namespace rmioc
 {
 
 buttons::buttons()
-: input("/dev/input/event2")
+: input("/dev/input/event0")
 {}
 
 auto buttons::process_events() -> bool

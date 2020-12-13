@@ -7,7 +7,7 @@ namespace rmioc
 {
 
 pen::pen()
-: input("/dev/input/event0")
+: input("/dev/input/event1")
 , state{}
 {}
 

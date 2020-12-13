@@ -7,7 +7,7 @@ namespace rmioc
 {
 
 touch::touch()
-: input("/dev/input/event1")
+: input("/dev/input/event2")
 {}
 
 auto touch::process_events() -> bool
