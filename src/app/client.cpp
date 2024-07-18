@@ -1,6 +1,7 @@
 #include "client.hpp"
 #include "../log.hpp"
 #include "../rmioc/buttons.hpp"
+#include "../rmioc/device.hpp"
 #include "../rmioc/pen.hpp"
 #include "../rmioc/touch.hpp"
 #include <algorithm>
@@ -22,7 +23,6 @@
 #include <rfb/rfbclient.h>
 #include <unistd.h>
 // IWYU pragma: no_include <type_traits>
-// IWYU pragma: no_include <rfb/rfbproto.h>
 
 /** Custom log printer for the VNC client library.  */
 // NOLINTNEXTLINE(cert-dcl50-cpp): Need to use a vararg function for C compat
@@ -51,16 +51,17 @@ namespace app
 
 using namespace std::placeholders;
 
-client::client(
-    const char* ip, int port,
-    rmioc::screen& screen_device,
-    rmioc::buttons* buttons_device,
-    rmioc::pen* pen_device,
-    rmioc::touch* touch_device
-)
+client::client(const char* ip, int port, rmioc::device& device)
 : vnc_client(rfbGetClient(0, 0, 0))
-, screen_handler(screen_device, vnc_client)
 {
+    if (device.get_screen() == nullptr)
+    {
+        throw std::runtime_error{"Missing screen device"};
+    }
+
+    auto& screen_device = *device.get_screen();
+    this->screen_handler.emplace(screen_device, vnc_client);
+
     rfbClientLog = vnc_client_log;
     rfbClientErr = vnc_client_log;
 
@@ -75,12 +76,13 @@ client::client(
         throw std::runtime_error{"Failed to initialize VNC connection"};
     }
 
-    if (buttons_device != nullptr)
+    if (device.get_buttons() != nullptr)
     {
-        this->buttons_handler.emplace(*buttons_device, screen_device);
+        auto& buttons_device = *device.get_buttons();
+        this->buttons_handler.emplace(buttons_device, screen_device);
         this->poll_buttons = this->polled_fds.size();
         this->polled_fds.push_back(pollfd{});
-        buttons_device->setup_poll(this->polled_fds[this->poll_buttons]);
+        buttons_device.setup_poll(this->polled_fds[this->poll_buttons]);
     }
 
     auto button_callback = [this](int x, int y, MouseButton button)
@@ -88,24 +90,26 @@ client::client(
         this->send_button_press(x, y, button);
     };
 
-    if (pen_device != nullptr)
+    if (device.get_pen() != nullptr)
     {
+        auto& pen_device = *device.get_pen();
         this->pen_handler.emplace(
-            *pen_device, this->screen_handler,
+            pen_device, *this->screen_handler,
             button_callback);
         this->poll_pen = this->polled_fds.size();
         this->polled_fds.push_back(pollfd{});
-        pen_device->setup_poll(this->polled_fds[this->poll_pen]);
+        pen_device.setup_poll(this->polled_fds[this->poll_pen]);
     }
 
-    if (touch_device != nullptr)
+    if (device.get_touch() != nullptr)
     {
+        auto& touch_device = *device.get_touch();
         this->touch_handler.emplace(
-            *touch_device, screen_device,
+            touch_device, screen_device,
             button_callback);
         this->poll_touch = this->polled_fds.size();
         this->polled_fds.push_back(pollfd{});
-        touch_device->setup_poll(this->polled_fds[this->poll_touch]);
+        touch_device.setup_poll(this->polled_fds[this->poll_touch]);
     }
 
     this->poll_vnc = this->polled_fds.size();
@@ -121,10 +125,11 @@ client::~client()
     rfbClientCleanup(this->vnc_client);
 }
 
-void client::event_loop()
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+auto client::event_loop() -> bool
 {
     // Maximum time to wait before timeout in the next poll
-    int timeout = -1;
+    long timeout = -1;
 
     // Flag used for quitting the event loop
     bool quit = false;
@@ -154,7 +159,7 @@ void client::event_loop()
         while (poll(
                     this->polled_fds.data(),
                     this->polled_fds.size(),
-                    timeout) == -1)
+                    static_cast<int>(timeout)) == -1)
         {
             if (errno != EAGAIN)
             {
@@ -173,11 +178,11 @@ void client::event_loop()
         {
             if (HandleRFBServerMessage(this->vnc_client) == 0)
             {
-                break;
+                return false;
             }
         }
 
-        handle_status(this->screen_handler.event_loop());
+        handle_status(this->screen_handler->event_loop());
 
         if (this->pen_handler.has_value()
         // NOLINTNEXTLINE(hicpp-signed-bitwise): Use of C library
@@ -186,7 +191,8 @@ void client::event_loop()
             handle_status(this->pen_handler->process_events());
         }
 
-        bool inhibit = this->pen_handler->is_inhibiting();
+        bool inhibit = this->pen_handler.has_value()
+            && this->pen_handler->is_inhibiting();
 
         if (this->buttons_handler.has_value()
         // NOLINTNEXTLINE(hicpp-signed-bitwise): Use of C library
@@ -202,6 +208,8 @@ void client::event_loop()
             handle_status(this->touch_handler->process_events(inhibit));
         }
     }
+
+    return true;
 }
 
 void client::send_button_press(

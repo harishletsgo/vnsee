@@ -5,7 +5,7 @@
 #include <chrono>
 #include <iosfwd>
 #include <rfb/rfbclient.h>
-// IWYU pragma: no_include "rfb/rfbproto.h"
+#include <rfb/rfbproto.h>
 
 namespace rmioc
 {
@@ -30,10 +30,14 @@ public:
      */
     void repaint();
 
-    /** get x resolution */
+    /**
+     * Get the number of usable pixel columns on the screen.
+     */
     int get_xres();
 
-    /** get x resolution */
+    /**
+     * Get the number of usable pixel rows on the screen.
+     */
     int get_yres();
 
     /**
@@ -58,7 +62,6 @@ public:
         fast = 1
     };
 
-    /** set the rendering mode */
     void set_repaint_mode(repaint_modes mode);
 
 private:
@@ -76,7 +79,24 @@ private:
     static rfbBool create_framebuf(rfbClient* client);
 
     /**
-     * Called by the VNC client library to register an update from the server.
+     * Called by the VNC client library when a bitmap rectangle is received
+     * from the server.
+     *
+     * @param client Handle to the VNC client.
+     * @param buffer Buffer containing the received update.
+     * @param x Left bound of the updated rectangle (in pixels).
+     * @param y Top bound of the updated rectangle (in pixels).
+     * @param w Width of the updated rectangle (in pixels).
+     * @param h Height of the updated rectangle (in pixels).
+     */
+    static void recv_update(
+        rfbClient* client,
+        const uint8_t* buffer,
+        int x, int y, int w, int h
+    );
+
+    /**
+     * Called by the VNC client library when a server update is completed.
      *
      * @param client Handle to the VNC client.
      * @param x Left bound of the updated rectangle (in pixels).
@@ -84,7 +104,7 @@ private:
      * @param w Width of the updated rectangle (in pixels).
      * @param h Height of the updated rectangle (in pixels).
      */
-    static void recv_framebuf(
+    static void commit_updates(
         rfbClient* client,
         int x, int y, int w, int h
     );
@@ -108,11 +128,11 @@ private:
         bool has_update = false;
     } update_info;
 
-    /** Last time the reMarkable screen was repainted. */
-    std::chrono::steady_clock::time_point last_repaint_time;
+    /** Last time a repaint was performed. */
+    std::chrono::steady_clock::time_point last_repaint;
 
     /** Tag used for accessing the instance from C callbacks. */
-    static constexpr std::size_t instance_tag = 6803;
+    static void* instance_tag;
 
     /** Current repaint mode. */
     repaint_modes repaint_mode;

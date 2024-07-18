@@ -1,10 +1,22 @@
 cmake_minimum_required(VERSION 3.7)
-project(VNSee VERSION 0.3.0)
+project(VNSee VERSION 0.4.1)
 
-# Import libvncserver in static mode
-set(BUILD_SHARED_LIBS OFF CACHE STRING "" FORCE)
-set(WITH_GNUTLS OFF CACHE STRING "" FORCE)
-add_subdirectory(libvncserver)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LibVNCClient libvncclient)
+
+if(NOT LibVNCClient_FOUND)
+    message(STATUS "LibVNCClient not found - using built-in version")
+    set(BUILD_SHARED_LIBS OFF CACHE STRING "" FORCE)
+    set(WITH_GNUTLS OFF CACHE STRING "" FORCE)
+    add_subdirectory(vendor/libvncserver)
+endif()
+
+find_package(Boost)
+
+if(NOT Boost_FOUND)
+    message(STATUS "Boost.Preprocessor not found - using built-in version")
+    add_subdirectory(vendor/boost-preprocessor)
+endif()
 
 # Options for building vnsee
 option(CHECK_INCLUDES "Run include-what-you-use to check #includes" OFF)
@@ -42,12 +54,17 @@ add_executable(vnsee
     src/app/pen.cpp
     src/app/screen.cpp
     src/app/touch.cpp
+    src/main.cpp
     src/rmioc/buttons.cpp
+    src/rmioc/device.cpp
+    src/rmioc/file.cpp
     src/rmioc/input.cpp
+    src/rmioc/mxcfb.cpp
     src/rmioc/pen.cpp
     src/rmioc/screen.cpp
+    src/rmioc/screen_mxcfb.cpp
+    src/rmioc/screen_rm2fb.cpp
     src/rmioc/touch.cpp
-    src/main.cpp
 )
 
 if(CMAKE_VERSION VERSION_LESS "3.8")
@@ -61,10 +78,19 @@ else()
 endif()
 
 configure_file(src/config.hpp.in src/config.hpp)
+target_link_libraries(vnsee PUBLIC rt)
+target_include_directories(vnsee PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/src)
 
-target_link_libraries(vnsee PRIVATE vncclient)
-target_include_directories(vnsee PRIVATE
-    ${CMAKE_CURRENT_BINARY_DIR}/libvncserver
-    ${CMAKE_CURRENT_BINARY_DIR}/src
-    libvncserver
-)
+if(NOT LibVNCClient_FOUND)
+    target_link_libraries(vnsee PRIVATE vncclient)
+    target_include_directories(vnsee PRIVATE ${LibVNCServer_BINARY_DIR} ${LibVNCServer_SOURCE_DIR})
+else()
+    target_link_libraries(vnsee PUBLIC ${LibVNCClient_LDFLAGS})
+    target_include_directories(vnsee PUBLIC ${LibVNCClient_INCLUDE_DIRS})
+endif()
+
+if(NOT Boost_FOUND)
+    target_link_libraries(vnsee PUBLIC Boost::preprocessor)
+else()
+    target_include_directories(vnsee PUBLIC ${Boost_INCLUDE_DIRS})
+endif()

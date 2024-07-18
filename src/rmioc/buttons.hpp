@@ -12,7 +12,15 @@ namespace rmioc
 class buttons : public input
 {
 public:
-    buttons();
+    /**
+     * Open the physical buttons device.
+     *
+     * @param path Path to the device.
+     */
+    buttons(const char* device_path);
+
+    /** Check if an input device is a buttons device. */
+    static bool is(const char* device_path);
 
     /**
      * Fetch new events from the buttons and process them.

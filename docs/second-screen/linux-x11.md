@@ -1,6 +1,6 @@
-# Setup as a second screen on Linux with X11
+# Setup as a Second Screen on Linux with X11
 
-## Find a suitable output
+## Find a Suitable Output
 
 The first step is to create a new space on your computer on which applications can be launched and that can be mirrored on the reMarkable through VNC, without being visible on your computer.
 
@@ -15,7 +15,7 @@ When using the Intel X11 driver, virtual outputs called `VIRTUAL1`, `VIRTUAL2`, 
 You should see them at the bottom of `xrandr`’s output, listed as `disconnected`.
 If not, you need to configure the driver’s `VirtualHeads` option appropriately; if you don’t already have an existing configuration file for the Intel driver, create one at `/etc/X11/xorg.conf.d/20-intel.conf` with the following contents:
 
-```sh
+```conf
 Section "Device"
     Identifier "intelgpu0"
     Driver "intel"
@@ -34,13 +34,13 @@ They have a virtual display feature (see the `virtual_display` parameter in the 
 
 Unknown.
 
-### Generic workaround
+### Generic Workaround
 
 One workaround is to use any existing output that isn't plugged in.
 This might lead to weird issues, especially if the corresponding screen is later connected.
 To list all disconnected outputs, use the following command:
 
-```sh
+```console
 $ xrandr | grep disconnected
 DP-3 disconnected (normal left inverted right x axis y axis)
 HDMI-1 disconnected (normal left inverted right x axis y axis)
@@ -48,43 +48,43 @@ HDMI-1 disconnected (normal left inverted right x axis y axis)
 
 Here, you may use either of the `DP-3` or `HDMI-1` outputs for the following instructions.
 
-## Create a compatible display mode
+## Create a Compatible Display Mode
 
 Create a new mode compatible with the tablet’s resolution:
 
-```sh
-$ xrandr --newmode 1408x1872 $(gtf 1408 1872 60 | tail -n2 | head -n1 | tr -s ' ' | cut -d' ' -f4-)
+```console
+$ xrandr --newmode 1404x1872 0 1404 1404 1404 1404 1872 1872 1872 1872
 ```
 
-## Setup the output
+## Setup the Output
 
 _In the following, replace `OUTPUTNAME` by the name of the output you want to mirror on the reMarkable, as determined in the first section._
 
 First add the display mode to the set output:
 
-```sh
-$ xrandr --addmode OUTPUTNAME 1408x1872
+```console
+$ xrandr --addmode OUTPUTNAME 1404x1872
 ```
 
 Enable and place the set output through your usual dual screen configuration program such as arandr, GNOME’s settings panel or KDE settings.
 When using the generic workaround, the output you chose will not appear in those programs, and you need to use `xrandr` as follows:
 
-```sh
-$ xrandr --output OUTPUTNAME --mode 1408x1872 --right-of MAINOUTPUT
+```console
+$ xrandr --output OUTPUTNAME --mode 1404x1872 --right-of MAINOUTPUT
 ```
 
 Where `MAINOUTPUT` is the name of your main screen to the right of which you want to place the second screen.
 You may replace `--right-of` by `--left-of`, `--above`, or `--below`.
 Ignore any error saying `xrandr: Configure crtc X failed`.
 
-## Start the VNC server
+## Start the VNC Server
 
 _In the following, replace `OUTPUTNAME` by the name of the output you want to mirror on the reMarkable, as determined in the first section._
 
 Any VNC server can be used for this task.
 We recommend x11vnc, which can be launched using the following command line:
 
-```sh
+```console
 $ x11vnc -repeat -forever -nocursor -allow 10.11.99.1 -nopw -clip $(xrandr | perl -n -e'/OUTPUTNAME .*?(\d+x\d+\+\d+\+\d+)/ && print $1')
 ```
 
@@ -107,11 +107,8 @@ Flag         | Description
 
 ## Start VNSee
 
-Finally, start VNSee using SSH.
+If you installed VNSee through [Toltec](https://toltec-dev.org) and you’re using a launcher such as [Oxide](https://github.com/Eeems/oxide) or [remux](https://github.com/rmkit-dev/rmkit/tree/master/src/remux) (which is the recommended setup), VNSee should show up in the list of available apps on the tablet.
+Starting the VNSee app will bring up a screen listing the available VNC servers, in which you should see a server listening on `10.11.99.2:5900`.
+Tap on that server and you should see your computer’s screen appear on the reMarkable after a few seconds.
 
-```sh
-$ ssh root@10.11.99.1 "systemctl stop xochitl && ./vnsee; systemctl start xochitl"
-```
-
-**Note:** If you get a message saying that the `Server uses an unsupported resolution`, you did not configure your screen correctly.
-Please make sure that the chosen output is enabled.
+Otherwise, you can also start VNSee manually through SSH. Don’t forget to stop the main UI app first (`systemctl stop xochitl`) and start it again afterwards (`systemctl start xochitl`).
